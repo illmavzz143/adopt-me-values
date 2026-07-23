@@ -32,37 +32,45 @@ jobs:
           import json
           import re
 
-          url = "https://amvgg.com/value-updates"
+          # Próbujemy uderzyć bezpośrednio w potencjalny endpoint API lub główne źródło
+          url = "https://amvgg.com/api/values" # Czasami endpointy tak się nazywają lub ukrywają w strukturze
           headers = {
-              "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-              "RSC": "1",
-              "Accept": "text/x-component"
+              "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+              "Accept": "application/json"
           }
 
-          try:
-              response = requests.get(url, headers=headers, timeout=20)
-              if response.status_code == 200:
-                  text_data = response.text
-                  
-                  # Tworzymy słownik danych (wyciągamy pary z treści lub zapisujemy strukturę)
-                  # Ponieważ strona to Next.js, budujemy czysty plik JSON dla Robloxa
-                  parsed_data = {}
-                  
-                  # Przykładowe wyciąganie tekstów/wartości jeśli występują w strumieniu
-                  # Jeśli struktura wymaga dedykowanego endpointu API, szukamy go w locie:
-                  for line in text_data.split("\n"):
-                      if ":" in line and len(line) < 300:
-                          # Próba wyłapania par klucz-wartość ze strumienia RSC
-                          pass
+          data_to_save = {}
 
-                  # Zapisujemy przetworzony, czysty JSON do pliku
-                  # Zabezpieczenie: jeśli strumień nie ma płaskiego JSONa, zapisujemy strukturę sformatowaną
-                  with open("values.json", "w", encoding="utf-8") as f:
-                      json.dump({"raw_stream": text_data[:5000], "status": "updated"}, f, indent=4)
-                      
-                  print("Zaktualizowano plik JSON automatycznie.")
-              else:
-                  exit(1)
+          try:
+              response = requests.get("https://amvgg.com/value-updates", headers={
+                  "User-Agent": "Mozilla/5.0",
+                  "RSC": "1"
+              }, timeout=20)
+              
+              if response.status_code == 200:
+                  text = response.text
+                  # Szukamy w tekście struktur, które przypominają ceny lub nazwy petów (wzorców liczbowych/tekstowych)
+                  # Wyciągamy wszystko, co wygląda na słownik JSON ukryty w strumieniu Next.js
+                  matches = re.findall(r"\{[^}]+\}", text)
+                  
+                  extracted = {}
+                  for m in matches:
+                      try:
+                          parsed = json.loads(m)
+                          if isinstance(parsed, dict):
+                              extracted.update(parsed)
+                      except:
+                          pass
+                  
+                  if extracted:
+                      data_to_save = extracted
+                  else:
+                      # Awaryjnie zapisujemy czysty znacznik, jeśli struktura jest mocno zagnieżdżona
+                      data_to_save = {"error": "API structure requires direct endpoint"}
+
+              with open("values.json", "w", encoding="utf-8") as f:
+                  json.dump(data_to_save, f, indent=4)
+              print("Zakończono próbę parsowania API.")
           except Exception as e:
               print("Blad:", str(e))
               exit(1)
@@ -72,4 +80,4 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "41898282+github-actions[bot]@users.github.io"
           git add values.json
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Automatyczna aktualizacja values.json" && git push origin main)
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Automatyczna aktualizacja API values.json" && git push origin main)
