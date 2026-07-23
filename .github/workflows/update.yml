@@ -23,31 +23,37 @@ jobs:
       - name: Install dependencies
         run: pip install requests
 
-      - name: Run Scraper Script
+      - name: Run Scraper and Commit
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           python -c '
           import requests
           import json
-          
+          import os
+          import subprocess
+
           url = "https://amvgg.com/api/values"
           headers = {"User-Agent": "Mozilla/5.0"}
-          
+
           try:
               response = requests.get(url, headers=headers, timeout=15)
               if response.status_code == 200:
                   data = response.json()
                   with open("values.json", "w", encoding="utf-8") as f:
                       json.dump(data, f, ensure_ascii=False, indent=2)
-                  print("Sukces: Pobrano pełną bazę wszystkich petów!")
+                  print("Pobrano dane pomyślnie.")
               else:
-                  print("Blad pobierania:", response.status_code)
+                  print("Blad HTTP:", response.status_code)
+                  exit(1)
           except Exception as e:
-              print("Wyjatek:", str(e))
+              print("Blad:", str(e))
+              exit(1)
           '
-
-      - name: Commit and push if changed
-        run: |
+          
+          # Konfiguracja gita z użyciem tokena uwierzytelniającego
+          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
           git config --global user.name "github-actions[bot]"
           git config --global user.email "41898282+github-actions[bot]@users.github.io"
           git add values.json
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Automatyczna aktualizacja pełnej bazy petów" && git push)
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Automatyczna aktualizacja values.json" && git push origin main)
