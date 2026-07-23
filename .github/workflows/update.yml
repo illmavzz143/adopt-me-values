@@ -1,1 +1,67 @@
-url = "https://amvgg.com/api/pets" # albo szukamy właściwego endpointu
+name: Auto Update AMVGG Values
+
+on:
+  schedule:
+    - cron: '0 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update-data:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Run Scraper and Commit
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python -c '
+          import requests
+          import json
+          import re
+
+          headers = {
+              "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+          }
+
+          data_to_save = {}
+
+          try:
+              response = requests.get("https://amvgg.com", headers=headers, timeout=20)
+              if response.status_code == 200:
+                  html = response.text
+                  api_links = re.findall(r"https?://[^\s<>\"']+api[^\s<>\"']*", html)
+                  json_links = re.findall(r"/[^\s<>\"']+\.json", html)
+                  chunk_links = re.findall(r"/_next/static/chunks/[^\s<>\"']+\.js", html)
+
+                  data_to_save = {
+                      "found_api_links": api_links,
+                      "found_json_links": json_links,
+                      "found_chunks": chunk_links[:10]
+                  }
+
+              with open("values.json", "w", encoding="utf-8") as f:
+                  json.dump(data_to_save, f, indent=4)
+              print("Przeszukano stronę.")
+          except Exception as e:
+              print("Blad:", str(e))
+              exit(1)
+          '
+          
+          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.github.io"
+          git add values.json
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Naprawa skryptu" && git push origin main)
