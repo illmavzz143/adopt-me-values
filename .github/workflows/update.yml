@@ -5,6 +5,9 @@ on:
     - cron: '0 * * * *'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   update-data:
     runs-on: ubuntu-latest
@@ -26,7 +29,6 @@ jobs:
           import requests
           import json
           
-          # Oficjalne źródło/endpoint z pełną bazą wartości AMVGG
           url = "https://amvgg.com/api/values"
           headers = {"User-Agent": "Mozilla/5.0"}
           
