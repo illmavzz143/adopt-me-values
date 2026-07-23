@@ -2,14 +2,14 @@ name: Auto Update AMVGG Values
 
 on:
   schedule:
-    - cron: '0 */3 * * *' # Aktualizacja co 3 godziny
+    - cron: '0 * * * *'
   workflow_dispatch:
 
 jobs:
-  update:
+  update-data:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repo
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Set up Python
@@ -18,31 +18,34 @@ jobs:
           python-version: '3.10'
 
       - name: Install dependencies
-        run: pip install requests beautifulsoup4
+        run: pip install requests
 
-      - name: Scrape AMVGG and Save
+      - name: Run Scraper Script
         run: |
           python -c '
-          import requests, json
-          # Pobieranie danych bezpośrednio z endpointu AMVGG
+          import requests
+          import json
+          
+          # Oficjalne źródło/endpoint z pełną bazą wartości AMVGG
           url = "https://amvgg.com/api/values"
           headers = {"User-Agent": "Mozilla/5.0"}
+          
           try:
-              res = requests.get(url, headers=headers, timeout=15)
-              if res.status_code == 200:
-                  data = res.json()
+              response = requests.get(url, headers=headers, timeout=15)
+              if response.status_code == 200:
+                  data = response.json()
                   with open("values.json", "w", encoding="utf-8") as f:
-                      json.dump(data, f, ensure_ascii=False)
-                  print("Sukces pobierania pełnej bazy!")
+                      json.dump(data, f, ensure_ascii=False, indent=2)
+                  print("Sukces: Pobrano pełną bazę wszystkich petów!")
               else:
-                  print("Blad HTTP:", res.status_code)
+                  print("Blad pobierania:", response.status_code)
           except Exception as e:
-              print("Blad pobierania:", e)
+              print("Wyjatek:", str(e))
           '
 
-      - name: Commit and Push if changed
+      - name: Commit and push if changed
         run: |
-          git config --global user.name "GitHub Action"
-          git config --global user.email "action@github.com"
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.github.io"
           git add values.json
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Auto-update AMVGG values" && git push)
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Automatyczna aktualizacja pełnej bazy petów" && git push)
