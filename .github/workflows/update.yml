@@ -1,0 +1,48 @@
+name: Auto Update AMVGG Values
+
+on:
+  schedule:
+    - cron: '0 */3 * * *' # Aktualizacja co 3 godziny
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: pip install requests beautifulsoup4
+
+      - name: Scrape AMVGG and Save
+        run: |
+          python -c '
+          import requests, json
+          # Pobieranie danych bezpośrednio z endpointu AMVGG
+          url = "https://amvgg.com/api/values"
+          headers = {"User-Agent": "Mozilla/5.0"}
+          try:
+              res = requests.get(url, headers=headers, timeout=15)
+              if res.status_code == 200:
+                  data = res.json()
+                  with open("values.json", "w", encoding="utf-8") as f:
+                      json.dump(data, f, ensure_ascii=False)
+                  print("Sukces pobierania pełnej bazy!")
+              else:
+                  print("Blad HTTP:", res.status_code)
+          except Exception as e:
+              print("Blad pobierania:", e)
+          '
+
+      - name: Commit and Push if changed
+        run: |
+          git config --global user.name "GitHub Action"
+          git config --global user.email "action@github.com"
+          git add values.json
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Auto-update AMVGG values" && git push)
