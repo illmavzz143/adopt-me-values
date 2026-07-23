@@ -21,7 +21,7 @@ jobs:
           python-version: '3.10'
 
       - name: Install dependencies
-        run: pip install requests
+        run: pip install requests lxml beautifulsoup4
 
       - name: Run Scraper and Commit
         env:
@@ -30,30 +30,34 @@ jobs:
           python -c '
           import requests
           import json
-          import os
-          import subprocess
 
+          # Próbujemy pobrać dane z nagłówkami udającymi prawdziwą przeglądarkę
           url = "https://amvgg.com/api/values"
-          headers = {"User-Agent": "Mozilla/5.0"}
+          headers = {
+              "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+              "Accept": "application/json, text/plain, */*",
+              "Referer": "https://amvgg.com/"
+          }
 
           try:
-              response = requests.get(url, headers=headers, timeout=15)
+              response = requests.get(url, headers=headers, timeout=20)
+              print(f"Kod odpowiedzi: {response.status_code}")
+              
               if response.status_code == 200:
                   data = response.json()
                   with open("values.json", "w", encoding="utf-8") as f:
                       json.dump(data, f, ensure_ascii=False, indent=2)
-                  print("Pobrano dane pomyślnie.")
+                  print("Sukces! Zapisano plik values.json.")
               else:
-                  print("Blad HTTP:", response.status_code)
+                  print("Serwer zwrócił błąd:", response.text[:200])
                   exit(1)
           except Exception as e:
-              print("Blad:", str(e))
+              print("Błąd krytyczny:", str(e))
               exit(1)
           '
           
-          # Konfiguracja gita z użyciem tokena uwierzytelniającego
           git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
           git config --global user.name "github-actions[bot]"
           git config --global user.email "41898282+github-actions[bot]@users.github.io"
           git add values.json
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Automatyczna aktualizacja values.json" && git push origin main)
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Aktualizator danych AMVGG" && git push origin main)
