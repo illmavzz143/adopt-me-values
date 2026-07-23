@@ -21,7 +21,7 @@ jobs:
           python-version: '3.10'
 
       - name: Install dependencies
-        run: pip install requests lxml beautifulsoup4
+        run: pip install requests
 
       - name: Run Scraper and Commit
         env:
@@ -31,28 +31,28 @@ jobs:
           import requests
           import json
 
-          # Próbujemy pobrać dane z nagłówkami udającymi prawdziwą przeglądarkę
-          url = "https://amvgg.com/api/values"
+          url = "https://amvgg.com/value-updates"
           headers = {
               "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-              "Accept": "application/json, text/plain, */*",
-              "Referer": "https://amvgg.com/"
+              "RSC": "1",
+              "Accept": "text/x-component",
+              "Referer": "https://amvgg.com/value-updates"
           }
 
           try:
               response = requests.get(url, headers=headers, timeout=20)
-              print(f"Kod odpowiedzi: {response.status_code}")
+              print(f"Status: {response.status_code}")
               
               if response.status_code == 200:
-                  data = response.json()
+                  # Zapisujemy pobrany strumień Next.js do pliku
                   with open("values.json", "w", encoding="utf-8") as f:
-                      json.dump(data, f, ensure_ascii=False, indent=2)
-                  print("Sukces! Zapisano plik values.json.")
+                      f.write(response.text)
+                  print("Sukces! Pobrano dane Next.js.")
               else:
-                  print("Serwer zwrócił błąd:", response.text[:200])
+                  print("Błąd HTTP:", response.status_code)
                   exit(1)
           except Exception as e:
-              print("Błąd krytyczny:", str(e))
+              print("Błąd:", str(e))
               exit(1)
           '
           
@@ -60,4 +60,4 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "41898282+github-actions[bot]@users.github.io"
           git add values.json
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Aktualizator danych AMVGG" && git push origin main)
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Aktualizacja danych RSC" && git push origin main)
